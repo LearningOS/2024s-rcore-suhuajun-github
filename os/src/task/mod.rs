@@ -14,6 +14,8 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
+use crate::config::MAX_SYSCALL_NUM;
+
 use crate::config::MAX_APP_NUM;
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
@@ -54,6 +56,8 @@ lazy_static! {
         let mut tasks = [TaskControlBlock {
             task_cx: TaskContext::zero_init(),
             task_status: TaskStatus::UnInit,
+            time_start: 0,
+            syscall_times: [0; MAX_SYSCALL_NUM]
         }; MAX_APP_NUM];
         for (i, task) in tasks.iter_mut().enumerate() {
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
@@ -84,6 +88,7 @@ impl TaskManager {
         drop(inner);
         let mut _unused = TaskContext::zero_init();
         // before this, we should drop local variables that must be dropped manually
+
         unsafe {
             __switch(&mut _unused as *mut TaskContext, next_task_cx_ptr);
         }
@@ -135,6 +140,30 @@ impl TaskManager {
             panic!("All applications completed!");
         }
     }
+
+    fn set_time_start(&self, value: usize) {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].time_start = value;
+    }
+
+    fn get_time_start(&self) -> usize {
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].time_start
+    }
+    
+    fn set_syscall_times(&self, index: usize, value: u32) {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].syscall_times[index] = value;
+    }
+
+    fn get_syscall_times(&self, index: usize) -> u32 {
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].syscall_times[index]
+    }
 }
 
 /// Run the first task in task list.
@@ -168,4 +197,20 @@ pub fn suspend_current_and_run_next() {
 pub fn exit_current_and_run_next() {
     mark_current_exited();
     run_next_task();
+}
+
+pub fn task_set_time_start(value: usize) {
+    TASK_MANAGER.set_time_start(value);
+}
+
+pub fn task_get_time_start() -> usize {
+    TASK_MANAGER.get_time_start()
+}
+
+pub fn task_set_syscall_times(index: usize, value: u32) {
+    TASK_MANAGER.set_syscall_times(index, value);
+}
+
+pub fn task_get_syscall_times(index: usize) -> u32 {
+    TASK_MANAGER.get_syscall_times(index)
 }

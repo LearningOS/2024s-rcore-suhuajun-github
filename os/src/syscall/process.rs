@@ -5,6 +5,10 @@ use crate::{
     timer::get_time_us,
 };
 
+use crate::task::task_get_time_start;
+use crate::task::task_get_syscall_times;
+use crate::task::TaskStatus::Running;
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct TimeVal {
@@ -51,7 +55,13 @@ pub fn sys_get_time(ts: *mut TimeVal, _tz: usize) -> isize {
 }
 
 /// YOUR JOB: Finish sys_task_info to pass testcases
-pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
-    trace!("kernel: sys_task_info");
-    -1
+pub fn sys_task_info(ti: *mut TaskInfo) -> isize {
+    unsafe {
+        (*ti).status = Running;
+        (*ti).time = (get_time_us() - task_get_time_start()) / 1000;
+        for i in 0..MAX_SYSCALL_NUM {
+            (*ti).syscall_times[i] = task_get_syscall_times(i);
+        }
+    }
+    0
 }
