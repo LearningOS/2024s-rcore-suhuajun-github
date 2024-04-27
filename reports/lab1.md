@@ -1,3 +1,12 @@
+简答作业
+1. sbi: RustSBI-QEMU Version 0.2.0-alpha.3
+bad_address: 触发Store/AMO access fault
+bad_instructions: 触发Illegal instruction
+bad_register: 触发Illegal instruction
+
+2. 
+
+
 简单总结你实现的功能（200字以内，不要贴代码）。
 实现用户态计时和统计系统调用执行的次数
 
