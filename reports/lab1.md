@@ -4,7 +4,37 @@ bad_address: 触发Store/AMO access fault
 bad_instructions: 触发Illegal instruction
 bad_register: 触发Illegal instruction
 
-2. 
+2.
+L40：刚进入 __restore 时，a0 表示指向TrapContext结构体的指针
+__restore可以从__alltraps进入，调用完trap_handler，然后返回到__restore
+__restore也可以直接通过__switch函数进入，因为goto_restore里面把ra变量设置成了__restore，__switch会把ra变量存储到ra寄存器，执行ret指令后cpu就从__restore开始执行
+
+L43-L48：这几行汇编代码特殊处理了哪些寄存器？这些寄存器的的值对于进入用户态有何意义？请分别解释。
+
+ld t0, 32*8(sp)     读取TrapContext结构体中的sstatus到t0
+ld t1, 33*8(sp)     读取TrapContext结构体中的sepc到t1
+ld t2, 2*8(sp)      读取TrapContext结构体中的sp到t2
+csrw sstatus, t0    恢复status
+csrw sepc, t1       恢复sepc
+csrw sscratch, t2   把sp的值存储到sscratch，这可不是内核栈指针，是用户栈指针，之后还有一个csrrw会用内核栈指针和sscratch交换
+
+L50-L56：为何跳过了 x2 和 x4？
+x2是sp，是用户栈指针，之前的csrrw已经给用户栈指针交换到sscratch了，之后再读取出来保存，现在先跳过
+x4注释说了么，用户程序不会使用x4，x4是Thread pointer，用户程序不使用线程指针吗？不知道，注释说不使用，不保存
+
+L60：该指令之后，sp 和 sscratch 中的值分别有什么意义？
+就是之前说的，把用户栈指针和内核栈指针交换
+
+__restore：中发生状态切换在哪一条指令？为何该指令执行之后会进入用户态？
+sret
+cpu就是这样设计的这条指令
+
+L13：该指令之后，sp 和 sscratch 中的值分别有什么意义？
+进入__alltraps之前，sscratch中保存的是内核栈指针
+csrrw把sp和sscratch交换，执行完这条指令后sp中保存的是内核栈指针，sscratch中保存的是用户栈指针
+
+从 U 态进入 S 态是哪一条指令发生的？
+有可能是syscall函数里面的ecall指令，也有可能是syscall6函数里面的ecall指令
 
 
 简单总结你实现的功能（200字以内，不要贴代码）。
